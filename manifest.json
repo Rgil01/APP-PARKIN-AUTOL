@@ -1,0 +1,17 @@
+{
+  "name": "Parkin Autol - Control de clientes",
+  "short_name": "Parkin Autol",
+  "description": "Control de clientes, plazas, pagos mensuales y contabilidad del parking",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#fffbeb",
+  "theme_color": "#1e40af",
+  "lang": "es",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml" }
+  ]
+}

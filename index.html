@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parkin Autol · Control de clientes</title>
+<meta name="theme-color" content="#1e40af">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="Parkingautol.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Parkin Autol">
+<script src="lib/jspdf.umd.min.js"></script>
+<script src="lib/exceljs.min.js"></script>
+<style>
+  :root{
+    --azul:#1e40af; --azul-claro:#dbeafe;
+    --verde:#15803d; --verde-claro:#dcfce7;
+    --rojo:#b91c1c; --rojo-claro:#fee2e2;
+    --naranja:#c2410c; --naranja-claro:#ffedd5;
+    --morado:#6d28d9; --morado-claro:#ede9fe;
+    --amarillo:#facc15; --amarillo-oscuro:#854d0e;
+    --gris:#374151; --gris-claro:#f3f4f6; --borde:#9ca3af;
+    --fondo:#fffbeb;
+  }
+  *{box-sizing:border-box}
+  html{font-size:20px}
+  body{margin:0;font-family:"Segoe UI",Arial,Helvetica,sans-serif;background:var(--fondo);color:#111827;line-height:1.4}
+  button{font-family:inherit}
+
+  /* Cabecera */
+  header{background:var(--azul);color:#fff;padding:14px 16px;display:flex;align-items:center;gap:14px;box-shadow:0 3px 8px rgba(0,0,0,.25)}
+  header .logo{width:72px;height:56px;background:#fff;border-radius:14px;object-fit:contain;padding:2px;flex:none}
+  header h1{margin:0;font-size:1.5rem;letter-spacing:.5px}
+  header small{display:block;font-size:.8rem;opacity:.9}
+
+  /* Pestañas */
+  nav{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 10px 0}
+  nav button{border:4px solid transparent;border-radius:16px;padding:14px 6px;font-size:1rem;font-weight:800;cursor:pointer;color:#fff;display:flex;flex-direction:column;align-items:center;gap:4px;min-height:92px;transition:transform .1s}
+  nav button span.ic{font-size:1.9rem;line-height:1}
+  nav button:active{transform:scale(.97)}
+  nav button[data-tab=clientes]{background:var(--azul)}
+  nav button[data-tab=pagos]{background:var(--verde)}
+  nav button[data-tab=contab]{background:var(--morado)}
+  nav button[data-tab=ajustes]{background:var(--naranja)}
+  nav button.activa{border-color:var(--amarillo);box-shadow:0 0 0 4px #fff inset}
+
+  main{padding:12px 10px 40px;max-width:1100px;margin:0 auto}
+  section.tab{display:none}
+  section.tab.activa{display:block}
+
+  .tarjeta{background:#fff;border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,.12);border-left:10px solid var(--azul)}
+  .tarjeta.verde{border-left-color:var(--verde)}
+  .tarjeta.morado{border-left-color:var(--morado)}
+  .tarjeta.naranja{border-left-color:var(--naranja)}
+  .tarjeta.rojo{border-left-color:var(--rojo)}
+  h2{margin:0 0 12px;font-size:1.35rem;color:var(--azul)}
+  .tarjeta.verde h2{color:var(--verde)} .tarjeta.morado h2{color:var(--morado)} .tarjeta.naranja h2{color:var(--naranja)}
+  h3{margin:14px 0 8px;font-size:1.1rem;color:var(--gris)}
+
+  /* Botones */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:14px;padding:14px 20px;font-size:1.05rem;font-weight:800;cursor:pointer;color:#fff;background:var(--azul);min-height:56px;box-shadow:0 3px 0 rgba(0,0,0,.25);margin:4px 2px}
+  .btn:active{transform:translateY(2px);box-shadow:none}
+  .btn.verde{background:var(--verde)} .btn.rojo{background:var(--rojo)} .btn.naranja{background:var(--naranja)}
+  .btn.morado{background:var(--morado)} .btn.gris{background:var(--gris)} .btn.amarillo{background:var(--amarillo);color:#111}
+  .btn.peq{padding:10px 14px;font-size:.95rem;min-height:46px}
+  .btn.ancho{width:100%}
+  .fila-botones{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+
+  /* Formularios */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+  label{display:block;font-weight:700;font-size:.95rem;margin-bottom:4px;color:var(--gris)}
+  input,select,textarea{width:100%;font-size:1.05rem;padding:12px 14px;border:3px solid var(--borde);border-radius:12px;background:#fff;font-family:inherit;min-height:54px}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 4px var(--azul-claro)}
+  textarea{min-height:80px;resize:vertical}
+  .campo.ancho{grid-column:1/-1}
+  .obligatorio::after{content:" *";color:var(--rojo)}
+  .buscador{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+  .buscador input{font-size:1.15rem}
+
+  /* Tablas / listas */
+  table{width:100%;border-collapse:collapse;font-size:1rem}
+  th{background:var(--gris-claro);text-align:left;padding:10px 8px;border-bottom:3px solid var(--borde);font-size:.9rem}
+  td{padding:10px 8px;border-bottom:2px solid #e5e7eb;vertical-align:middle}
+  tr:nth-child(even) td{background:#fafafa}
+  .tabla-scroll{overflow-x:auto}
+  .derecha{text-align:right}
+  .negrita{font-weight:800}
+
+  .cliente-item{display:flex;align-items:center;gap:12px;padding:14px;border:3px solid #e5e7eb;border-radius:16px;margin-bottom:10px;background:#fff;cursor:pointer}
+  .cliente-item:hover{border-color:var(--azul)}
+  .cliente-item .plaza{width:70px;height:70px;border-radius:14px;background:var(--amarillo);color:#111;font-weight:900;font-size:1.3rem;display:grid;place-items:center;flex:none;text-align:center;line-height:1.05}
+  .cliente-item .plaza small{font-size:.65rem;font-weight:700}
+  .cliente-item .info{flex:1;min-width:0}
+  .cliente-item .nombre{font-weight:800;font-size:1.15rem}
+  .cliente-item .detalle{color:var(--gris);font-size:.95rem}
+  .cliente-item.baja{opacity:.6;background:var(--gris-claro)}
+
+  .estado{display:inline-block;padding:6px 12px;border-radius:999px;font-weight:800;font-size:.9rem;white-space:nowrap}
+  .estado.pagado{background:var(--verde-claro);color:var(--verde);border:2px solid var(--verde)}
+  .estado.pendiente{background:var(--rojo-claro);color:var(--rojo);border:2px solid var(--rojo)}
+  .estado.baja{background:var(--gris-claro);color:var(--gris);border:2px solid var(--gris)}
+
+  .resumen{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+  .caja{border-radius:16px;padding:14px;text-align:center;color:#fff}
+  .caja .num{font-size:1.7rem;font-weight:900;display:block}
+  .caja .tit{font-size:.9rem;font-weight:700;opacity:.95}
+  .caja.verde{background:var(--verde)} .caja.rojo{background:var(--rojo)} .caja.azul{background:var(--azul)} .caja.morado{background:var(--morado)} .caja.naranja{background:var(--naranja)}
+
+  .selector-mes{display:flex;align-items:center;justify-content:center;gap:10px;margin:6px 0 14px}
+  .selector-mes .mes{font-size:1.4rem;font-weight:900;color:var(--verde);min-width:230px;text-align:center;text-transform:capitalize}
+  .selector-mes .btn{min-width:64px;font-size:1.5rem}
+
+  .pago-fila{display:flex;align-items:center;gap:10px;padding:12px;border:3px solid #e5e7eb;border-radius:16px;margin-bottom:8px;flex-wrap:wrap}
+  .pago-fila.pagado{border-color:var(--verde);background:var(--verde-claro)}
+  .pago-fila.pendiente{border-color:var(--rojo);background:#fff5f5}
+  .pago-fila .info{flex:1;min-width:180px}
+  .pago-fila .nombre{font-weight:800;font-size:1.1rem}
+  .pago-fila .detalle{font-size:.95rem;color:var(--gris)}
+
+  dialog{border:none;border-radius:20px;padding:0;max-width:560px;width:95%;box-shadow:0 10px 40px rgba(0,0,0,.4)}
+  dialog::backdrop{background:rgba(0,0,0,.55)}
+  dialog .cabecera{padding:16px 20px;color:#fff;font-weight:900;font-size:1.25rem;border-radius:20px 20px 0 0}
+  dialog .cuerpo{padding:18px 20px}
+
+  .aviso{background:var(--amarillo);color:var(--amarillo-oscuro);padding:12px 16px;border-radius:14px;font-weight:700;margin-bottom:12px}
+  .vacio{text-align:center;color:var(--gris);padding:30px 10px;font-size:1.1rem}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#111827;color:#fff;padding:16px 24px;border-radius:16px;font-weight:800;font-size:1.1rem;z-index:99;display:none;box-shadow:0 6px 20px rgba(0,0,0,.4)}
+  .toast.ok{background:var(--verde)} .toast.error{background:var(--rojo)}
+  .oculto{display:none!important}
+
+  body:not(.autenticado)>header,body:not(.autenticado)>nav,body:not(.autenticado)>main{visibility:hidden}
+  #pantalla-acceso{position:fixed;inset:0;z-index:1000;display:grid;place-items:center;padding:24px;overflow:auto;background:linear-gradient(125deg,rgba(8,24,52,.78),rgba(15,54,100,.46)),url("Parkingautol.png") center/cover no-repeat}
+  .acceso-tarjeta{width:min(100%,440px);padding:32px;background:rgba(255,255,255,.97);border:1px solid rgba(255,255,255,.7);border-radius:24px;box-shadow:0 20px 60px rgba(0,0,0,.32)}
+  .acceso-marca{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+  .acceso-logo{width:100px;height:66px;border-radius:12px;object-fit:contain;background:#fff;flex:none}
+  .acceso-marca strong{display:block;color:var(--azul);font-size:1.05rem;letter-spacing:.04em}
+  .acceso-marca span{display:block;color:var(--gris);font-size:.8rem}
+  .acceso-tarjeta h1{margin:0 0 8px;color:#111827;font-size:1.55rem}
+  .acceso-descripcion{margin:0 0 20px;color:var(--gris);font-size:.95rem}
+  #acceso-error{min-height:1.4em;margin:10px 0;color:var(--rojo);font-size:.85rem;font-weight:700}
+  .acceso-restablecer{display:block;margin:14px auto 0;padding:8px;border:0;background:transparent;color:var(--azul);font:700 .9rem "Segoe UI",Arial,sans-serif;text-decoration:underline;cursor:pointer}
+  .acceso-nota{margin:18px 0 0;color:#6b7280;font-size:.74rem;line-height:1.5;text-align:center}
+  header .salir{margin-left:auto;white-space:nowrap}
+
+  @media (max-width:600px){
+    html{font-size:18px}
+    nav button{font-size:.85rem;min-height:84px;padding:10px 4px}
+    header h1{font-size:1.2rem}
+    .selector-mes .mes{min-width:160px;font-size:1.15rem}
+    .acceso-tarjeta{padding:24px}
+    header .logo{width:60px;height:48px}
+    header .salir{padding:10px 12px;font-size:.85rem}
+  }
+  @media print{header,nav,.btn,.fila-botones{display:none!important}}
+</style>
+</head>
+<body>
+
+<div id="pantalla-acceso">
+  <div class="acceso-tarjeta">
+    <div class="acceso-marca">
+      <img class="acceso-logo" src="Parkingautol.png" alt="Logo de Parking Autol">
+      <div><strong>PARKIN AUTOL</strong><span>Control de clientes, plazas y pagos</span></div>
+    </div>
+    <h1 id="acceso-titulo">Crear contraseña</h1>
+    <p class="acceso-descripcion" id="acceso-descripcion">Cree una contraseña y configure una pregunta para poder recuperarla.</p>
+    <form id="form-acceso" onsubmit="gestionarAcceso(event)">
+      <div id="acceso-clave-grupo">
+        <label id="acceso-label" for="acceso-clave">Contraseña nueva</label>
+        <input id="acceso-clave" type="password" minlength="8" required autocomplete="new-password" autofocus>
+      </div>
+      <div id="acceso-confirmacion">
+        <label for="acceso-confirmar">Repita la contraseña</label>
+        <input id="acceso-confirmar" type="password" minlength="8" required autocomplete="new-password">
+      </div>
+      <div id="acceso-pregunta-grupo">
+        <label for="acceso-pregunta">Pregunta de validación</label>
+        <input id="acceso-pregunta" required minlength="8" maxlength="160" placeholder="Escriba una pregunta que pueda recordar">
+        <label for="acceso-respuesta">Respuesta</label>
+        <input id="acceso-respuesta" type="password" required minlength="2" autocomplete="off">
+        <div id="acceso-respuesta-confirmacion">
+          <label for="acceso-respuesta-confirmar">Repita la respuesta</label>
+          <input id="acceso-respuesta-confirmar" type="password" required minlength="2" autocomplete="off">
+        </div>
+      </div>
+      <div id="acceso-recuperacion" class="oculto">
+        <p id="acceso-pregunta-guardada" class="aviso"></p>
+        <label for="acceso-respuesta-recuperacion">Respuesta de validación</label>
+        <input id="acceso-respuesta-recuperacion" type="password" minlength="2" autocomplete="off">
+      </div>
+      <p id="acceso-error" role="alert" aria-live="polite"></p>
+      <button id="acceso-enviar" class="btn ancho" type="submit">Guardar contraseña</button>
+    </form>
+    <button id="acceso-restablecer" class="acceso-restablecer oculto" type="button" onclick="iniciarRestablecimiento()">¿Olvidó la contraseña? Restablecer acceso</button>
+    <p class="acceso-nota">La pregunta y la contraseña se guardan en este dispositivo. El acceso local no sustituye una autenticación segura con servidor.</p>
+  </div>
+</div>
+
+<header>
+  <img id="logo-app" class="logo" src="Parkingautol.png" alt="Logo de Parking Autol">
+  <div>
+    <h1>PARKIN AUTOL</h1>
+    <small>Control de clientes, plazas y pagos</small>
+  </div>
+  <button class="btn gris peq salir" type="button" onclick="cerrarSesion()">🔒 Cerrar sesión</button>
+</header>
+
+<nav>
+  <button data-tab="clientes" class="activa"><span class="ic">🚗</span>Clientes</button>
+  <button data-tab="pagos"><span class="ic">💶</span>Pagos del mes</button>
+  <button data-tab="contab"><span class="ic">📊</span>Contabilidad</button>
+  <button data-tab="ajustes"><span class="ic">💾</span>Copias</button>
+</nav>
+
+<main>
+
+<!-- ======================= CLIENTES ======================= -->
+<section class="tab activa" id="tab-clientes">
+
+  <div id="lista-clientes-panel">
+    <div class="tarjeta">
+      <h2>🚗 Clientes y plazas</h2>
+      <div class="resumen">
+        <div class="caja azul"><span class="num" id="res-clientes">0</span><span class="tit">Clientes activos</span></div>
+        <div class="caja naranja"><span class="num" id="res-plazas">0</span><span class="tit">Plazas ocupadas</span></div>
+        <div class="caja verde"><span class="num" id="res-cuotas">0 €</span><span class="tit">Cuotas al mes</span></div>
+      </div>
+      <button class="btn verde ancho" style="font-size:1.25rem" onclick="nuevoCliente()">➕ &nbsp;DAR DE ALTA UN CLIENTE NUEVO</button>
+      <div class="fila-botones">
+        <button class="btn morado peq" onclick="pdfListadoClientes()">📄 Listado de clientes en PDF</button>
+        <label style="display:flex;align-items:center;gap:8px;font-size:1rem;margin-left:auto"><input type="checkbox" id="ver-bajas" style="width:28px;height:28px;min-height:0" onchange="pintarClientes()"> Ver también bajas</label>
+      </div>
+    </div>
+
+    <div class="tarjeta">
+      <div class="buscador">
+        <span style="font-size:1.6rem">🔍</span>
+        <input type="search" id="buscar" placeholder="Buscar por nombre, matrícula, plaza o teléfono…" oninput="pintarClientes()">
+      </div>
+      <div id="lista-clientes"></div>
+    </div>
+  </div>
+
+  <!-- Formulario de alta / edición -->
+  <div id="form-cliente-panel" class="oculto">
+    <div class="tarjeta">
+      <h2 id="form-titulo">➕ Alta de cliente</h2>
+      <p class="aviso">Los campos con <b style="color:var(--rojo)">*</b> son obligatorios. Pulse <b>GUARDAR</b> al terminar.</p>
+      <form id="form-cliente" onsubmit="guardarCliente(event)">
+        <input type="hidden" id="c-id">
+        <h3>👤 Datos del cliente</h3>
+        <div class="grid">
+          <div class="campo"><label class="obligatorio" for="c-nombre">Nombre</label><input id="c-nombre" required autocomplete="off"></div>
+          <div class="campo"><label class="obligatorio" for="c-apellidos">Apellidos</label><input id="c-apellidos" required autocomplete="off"></div>
+          <div class="campo"><label for="c-dni">DNI / NIE</label><input id="c-dni" autocomplete="off" style="text-transform:uppercase"></div>
+          <div class="campo"><label class="obligatorio" for="c-telefono">Teléfono</label><input id="c-telefono" type="tel" required></div>
+          <div class="campo"><label for="c-telefono2">Otro teléfono</label><input id="c-telefono2" type="tel"></div>
+          <div class="campo"><label for="c-email">Correo electrónico</label><input id="c-email" type="email"></div>
+          <div class="campo ancho"><label for="c-direccion">Dirección</label><input id="c-direccion"></div>
+        </div>
+
+        <h3>🚘 Vehículo</h3>
+        <div class="grid">
+          <div class="campo"><label class="obligatorio" for="c-matricula">Matrícula</label><input id="c-matricula" required style="text-transform:uppercase" autocomplete="off"></div>
+          <div class="campo"><label for="c-vehiculo">Marca y modelo</label><input id="c-vehiculo" placeholder="Ej: Seat Ibiza"></div>
+          <div class="campo"><label for="c-color">Color</label><input id="c-color"></div>
+          <div class="campo"><label for="c-matricula2">Segunda matrícula (opcional)</label><input id="c-matricula2" style="text-transform:uppercase"></div>
+        </div>
+
+        <h3>🅿️ Plaza de parking</h3>
+        <div class="grid">
+          <div class="campo"><label class="obligatorio" for="c-plaza">Número de plaza</label><input id="c-plaza" required autocomplete="off"></div>
+          <div class="campo"><label for="c-planta">Planta / zona</label><input id="c-planta" placeholder="Ej: Planta -1"></div>
+          <div class="campo"><label for="c-tipo">Tipo de plaza</label>
+            <select id="c-tipo"><option>Coche</option><option>Moto</option><option>Furgoneta</option><option>Coche grande</option><option>Plaza doble</option><option>Otro</option></select></div>
+          <div class="campo"><label for="c-mando">Nº de mando / tarjeta</label><input id="c-mando"></div>
+          <div class="campo"><label for="c-llaves">Llaves entregadas</label>
+            <select id="c-llaves"><option>No</option><option>Sí</option></select></div>
+        </div>
+
+        <h3>💶 Contrato y pago</h3>
+        <div class="grid">
+          <div class="campo"><label class="obligatorio" for="c-fechaAlta">Fecha de alta</label><input id="c-fechaAlta" type="date" required></div>
+          <div class="campo"><label class="obligatorio" for="c-cuota">Cuota mensual (€)</label><input id="c-cuota" type="number" step="0.01" min="0" required></div>
+          <div class="campo"><label for="c-diaPago">Día de pago (1-31)</label><input id="c-diaPago" type="number" min="1" max="31" value="1"></div>
+          <div class="campo"><label for="c-formaPago">Forma de pago habitual</label>
+            <select id="c-formaPago"><option>Efectivo</option><option>Transferencia</option><option>Bizum</option><option>Domiciliación</option><option>Tarjeta</option></select></div>
+          <div class="campo"><label for="c-iban">IBAN (si está domiciliado)</label><input id="c-iban"></div>
+          <div class="campo"><label for="c-fianza">Fianza entregada (€)</label><input id="c-fianza" type="number" step="0.01" min="0" value="0"></div>
+          <div class="campo ancho"><label for="c-observaciones">Observaciones</label><textarea id="c-observaciones"></textarea></div>
+        </div>
+
+        <div class="fila-botones">
+          <button type="submit" class="btn verde" style="font-size:1.2rem;flex:1">✅ GUARDAR</button>
+          <button type="button" class="btn gris" onclick="cerrarFormulario()">✖ Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Ficha del cliente -->
+  <div id="ficha-panel" class="oculto">
+    <div class="tarjeta" id="ficha-contenido"></div>
+  </div>
+</section>
+
+<!-- ======================= PAGOS ======================= -->
+<section class="tab" id="tab-pagos">
+  <div class="tarjeta verde">
+    <h2>💶 Pagos del mes</h2>
+    <div class="selector-mes">
+      <button class="btn verde" onclick="cambiarMes(-1)" title="Mes anterior">◀</button>
+      <div class="mes" id="mes-actual"></div>
+      <button class="btn verde" onclick="cambiarMes(1)" title="Mes siguiente">▶</button>
+    </div>
+    <div class="resumen">
+      <div class="caja verde"><span class="num" id="p-cobrado">0 €</span><span class="tit">Cobrado</span></div>
+      <div class="caja rojo"><span class="num" id="p-pendiente">0 €</span><span class="tit">Pendiente</span></div>
+      <div class="caja azul"><span class="num" id="p-num">0 / 0</span><span class="tit">Han pagado</span></div>
+    </div>
+    <div class="fila-botones">
+      <button class="btn verde peq" onclick="hoyMes()">📅 Ir al mes actual</button>
+      <button class="btn morado peq" onclick="pdfPagosMes()">📄 Lista del mes en PDF</button>
+      <button class="btn rojo peq" onclick="filtroPagos='pendiente';pintarPagos()">🔴 Solo pendientes</button>
+      <button class="btn gris peq" onclick="filtroPagos='todos';pintarPagos()">Todos</button>
+    </div>
+  </div>
+  <div class="tarjeta verde" id="lista-pagos"></div>
+</section>
+
+<!-- ======================= CONTABILIDAD ======================= -->
+<section class="tab" id="tab-contab">
+  <div class="tarjeta morado">
+    <h2>📊 Contabilidad</h2>
+    <div class="selector-mes">
+      <button class="btn morado" onclick="cambiarAnio(-1)">◀</button>
+      <div class="mes" id="anio-actual" style="color:var(--morado)"></div>
+      <button class="btn morado" onclick="cambiarAnio(1)">▶</button>
+    </div>
+    <div class="resumen">
+      <div class="caja verde"><span class="num" id="k-ingresos">0 €</span><span class="tit">Ingresos del año</span></div>
+      <div class="caja rojo"><span class="num" id="k-gastos">0 €</span><span class="tit">Gastos del año</span></div>
+      <div class="caja morado"><span class="num" id="k-saldo">0 €</span><span class="tit">Resultado</span></div>
+    </div>
+    <div class="fila-botones">
+      <button class="btn verde" onclick="exportarExcel(anioContab)">📗 EXPORTAR AÑO A EXCEL</button>
+      <button class="btn morado" onclick="exportarExcel(null)">📗 Exportar TODO a Excel</button>
+    </div>
+  </div>
+
+  <div class="tarjeta morado">
+    <h3 style="margin-top:0">Resumen por meses</h3>
+    <div class="tabla-scroll" id="tabla-meses"></div>
+  </div>
+
+  <div class="tarjeta rojo">
+    <h2 style="color:var(--rojo)">➖ Apuntar un gasto</h2>
+    <form onsubmit="guardarGasto(event)">
+      <div class="grid">
+        <div class="campo"><label class="obligatorio" for="g-fecha">Fecha</label><input id="g-fecha" type="date" required></div>
+        <div class="campo"><label class="obligatorio" for="g-concepto">Concepto</label><input id="g-concepto" required placeholder="Ej: Luz, limpieza, seguro…"></div>
+        <div class="campo"><label class="obligatorio" for="g-importe">Importe (€)</label><input id="g-importe" type="number" step="0.01" min="0" required></div>
+        <div class="campo"><label for="g-nota">Nota</label><input id="g-nota"></div>
+      </div>
+      <button type="submit" class="btn rojo">✅ Guardar gasto</button>
+    </form>
+    <h3>Gastos del año</h3>
+    <div class="tabla-scroll" id="tabla-gastos"></div>
+  </div>
+
+  <div class="tarjeta verde">
+    <h3 style="margin-top:0">Todos los cobros del año</h3>
+    <div class="tabla-scroll" id="tabla-cobros"></div>
+  </div>
+</section>
+
+<!-- ======================= AJUSTES / COPIAS ======================= -->
+<section class="tab" id="tab-ajustes">
+  <div class="tarjeta naranja">
+    <h2>💾 Copias de seguridad</h2>
+    <p class="aviso">⚠️ Los datos se guardan <b>solo en este dispositivo</b>. Haga una copia de seguridad de vez en cuando y guárdela en un lugar seguro (correo, pendrive, nube…). Si cambia de móvil u ordenador, use «Restaurar copia».</p>
+    <div class="fila-botones">
+      <button class="btn naranja" onclick="exportarCopia()">⬇️ DESCARGAR COPIA DE SEGURIDAD</button>
+      <label class="btn azul" style="background:var(--azul)">⬆️ RESTAURAR COPIA <input type="file" accept=".json,application/json" style="display:none" onchange="importarCopia(this)"></label>
+    </div>
+    <p id="info-datos" style="color:var(--gris)"></p>
+  </div>
+
+  <div class="tarjeta">
+    <h2>🏢 Datos del parking (para los PDF)</h2>
+    <div class="grid">
+      <div class="campo"><label>Nombre</label><input id="e-nombre" value="Parking Autol"></div>
+      <div class="campo"><label>Titular / Empresa</label><input id="e-titular"></div>
+      <div class="campo"><label>NIF / CIF</label><input id="e-nif"></div>
+      <div class="campo"><label>Teléfono</label><input id="e-telefono"></div>
+      <div class="campo ancho"><label>Dirección</label><input id="e-direccion"></div>
+    </div>
+    <button class="btn" onclick="guardarEmpresa()">✅ Guardar datos del parking</button>
+  </div>
+
+  <div class="tarjeta rojo">
+    <h2 style="color:var(--rojo)">🗑️ Zona de peligro</h2>
+    <button class="btn rojo" onclick="borrarTodo()">Borrar TODOS los datos de este dispositivo</button>
+  </div>
+</section>
+
+</main>
+
+<!-- Diálogo de cobro -->
+<dialog id="dlg-cobro">
+  <div class="cabecera" style="background:var(--verde)">💶 Registrar cobro</div>
+  <div class="cuerpo">
+    <p id="dlg-cobro-cliente" style="font-size:1.15rem;font-weight:800;margin:0 0 12px"></p>
+    <input type="hidden" id="k-clienteId"><input type="hidden" id="k-periodo">
+    <div class="grid">
+      <div class="campo"><label for="k-importe">Importe (€)</label><input id="k-importe" type="number" step="0.01" min="0"></div>
+      <div class="campo"><label for="k-fecha">Fecha del cobro</label><input id="k-fecha" type="date"></div>
+      <div class="campo"><label for="k-forma">Forma de pago</label>
+        <select id="k-forma"><option>Efectivo</option><option>Transferencia</option><option>Bizum</option><option>Domiciliación</option><option>Tarjeta</option></select></div>
+      <div class="campo"><label for="k-nota">Nota</label><input id="k-nota"></div>
+    </div>
+    <div class="fila-botones">
+      <button class="btn verde" style="flex:1;font-size:1.2rem" onclick="confirmarCobro()">✅ COBRADO</button>
+      <button class="btn gris" onclick="document.getElementById('dlg-cobro').close()">Cancelar</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Diálogo de confirmación -->
+<dialog id="dlg-confirm">
+  <div class="cabecera" style="background:var(--rojo)">⚠️ Confirmar</div>
+  <div class="cuerpo">
+    <p id="dlg-confirm-texto" style="font-size:1.1rem"></p>
+    <div class="fila-botones">
+      <button class="btn rojo" style="flex:1" id="dlg-confirm-si">Sí, continuar</button>
+      <button class="btn gris" style="flex:1" onclick="document.getElementById('dlg-confirm').close()">No</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =================== DATOS (almacenamiento local) =================== */
+const CLAVE = 'parkinAutol_v1';
+const CLAVE_ACCESO = 'parkinAutol_acceso_v1';
+let DB = cargar();
+function cargar(){
+  try{
+    const d = JSON.parse(localStorage.getItem(CLAVE));
+    if(d && Array.isArray(d.clientes)) return Object.assign({clientes:[],pagos:[],gastos:[],empresa:{}}, d);
+  }catch(e){}
+  return {clientes:[],pagos:[],gastos:[],empresa:{nombre:'Parking Autol'}};
+}
+function guardar(){
+  try{ localStorage.setItem(CLAVE, JSON.stringify(DB)); }
+  catch(e){ toast('No se han podido guardar los datos (memoria llena)', 'error'); }
+  infoDatos();
+}
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+
+/* =================== UTILIDADES =================== */
+const $ = id => document.getElementById(id);
+const eur = n => (Number(n)||0).toLocaleString('es-ES',{style:'currency',currency:'EUR'});
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const hoyISO = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+const fechaES = iso => { if(!iso) return ''; const [a,m,d]=iso.split('-'); return `${d}/${m}/${a}`; };
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const nombreMes = p => { const [a,m]=p.split('-'); return MESES[+m-1]+' '+a; };
+const nombreCompleto = c => `${c.nombre} ${c.apellidos}`.trim();
+
+function toast(msg, tipo='ok'){
+  const t=$('toast'); t.textContent=msg; t.className='toast '+tipo; t.style.display='block';
+  clearTimeout(t._t); t._t=setTimeout(()=>t.style.display='none', 2800);
+}
+function confirmar(texto, fn){
+  $('dlg-confirm-texto').textContent = texto;
+  const b=$('dlg-confirm-si'); b.onclick=()=>{ $('dlg-confirm').close(); fn(); };
+  $('dlg-confirm').showModal();
+}
+
+/* =================== ACCESO LOCAL =================== */
+let modoAcceso = 'crear';
+function configurarPantallaAcceso(modo){
+  let accesoGuardado=null, almacenamientoDisponible=true;
+  try{ accesoGuardado=JSON.parse(localStorage.getItem(CLAVE_ACCESO)||'null'); }catch(e){ almacenamientoDisponible=false; }
+  modoAcceso=modo==='inicio'?(accesoGuardado?'entrar':'crear'):modo;
+  const crear=modoAcceso==='crear';
+  const recuperar=modoAcceso==='recuperar';
+  const configurarPregunta=crear||modoAcceso==='pregunta';
+  const mostrarClave=modoAcceso!=='pregunta';
+  const titulo={
+    crear:'Crear contraseña',
+    entrar:'Bienvenido de nuevo',
+    pregunta:'Configurar recuperación',
+    recuperar:'Restablecer contraseña'
+  };
+  const descripcion={
+    crear:'Elija una contraseña de al menos 8 caracteres y configure una pregunta de validación.',
+    entrar:'Introduzca su contraseña para continuar.',
+    pregunta:'Añada una pregunta y una respuesta para poder recuperar la contraseña.',
+    recuperar:'Responda su pregunta de validación y elija una contraseña nueva.'
+  };
+  $('acceso-titulo').textContent=titulo[modoAcceso];
+  $('acceso-descripcion').textContent=descripcion[modoAcceso];
+  $('acceso-clave-grupo').classList.toggle('oculto',!mostrarClave);
+  $('acceso-label').textContent=crear||recuperar?'Contraseña nueva':'Contraseña';
+  $('acceso-clave').autocomplete=crear||recuperar?'new-password':'current-password';
+  $('acceso-clave').minLength=crear||recuperar?8:4;
+  $('acceso-clave').disabled=!mostrarClave;
+  $('acceso-clave').required=mostrarClave;
+  $('acceso-confirmacion').classList.toggle('oculto',!crear&&!recuperar);
+  $('acceso-confirmar').disabled=!crear&&!recuperar;
+  $('acceso-confirmar').required=crear||recuperar;
+  $('acceso-confirmar').minLength=crear||recuperar?8:4;
+  $('acceso-pregunta-grupo').classList.toggle('oculto',!configurarPregunta);
+  ['acceso-pregunta','acceso-respuesta','acceso-respuesta-confirmar'].forEach(id=>{ $(id).disabled=!configurarPregunta; $(id).required=configurarPregunta; });
+  $('acceso-respuesta-confirmacion').classList.toggle('oculto',!configurarPregunta||modoAcceso==='pregunta');
+  $('acceso-respuesta-confirmar').disabled=!crear;
+  $('acceso-respuesta-confirmar').required=crear;
+  $('acceso-recuperacion').classList.toggle('oculto',!recuperar);
+  $('acceso-respuesta-recuperacion').disabled=!recuperar;
+  $('acceso-respuesta-recuperacion').required=recuperar;
+  if(recuperar) $('acceso-pregunta-guardada').textContent=accesoGuardado&&accesoGuardado.pregunta||'No hay una pregunta de validación configurada.';
+  $('acceso-restablecer').classList.toggle('oculto',modoAcceso!=='entrar');
+  $('acceso-enviar').textContent=crear?'Guardar contraseña':recuperar?'Guardar contraseña nueva':modoAcceso==='pregunta'?'Guardar pregunta':'Entrar';
+  $('acceso-error').textContent=almacenamientoDisponible?'':'El navegador no permite guardar el acceso. Habilite el almacenamiento local para continuar.';
+  $('acceso-enviar').disabled=!almacenamientoDisponible;
+  $('acceso-clave').value='';
+  $('acceso-confirmar').value='';
+  $('acceso-pregunta').value='';
+  $('acceso-respuesta').value='';
+  $('acceso-respuesta-confirmar').value='';
+  $('acceso-respuesta-recuperacion').value='';
+}
+function codificarBase64(bytes){ return btoa(String.fromCharCode.apply(null,Array.from(bytes))); }
+function normalizarRespuesta(respuesta){ return respuesta.trim().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLocaleLowerCase('es'); }
+async function hashAcceso(clave,sal){
+  if(!window.crypto||!window.crypto.subtle||!window.TextEncoder) throw new Error('Este navegador no permite crear el acceso seguro. Abra la aplicación en un navegador actualizado.');
+  const material=await window.crypto.subtle.importKey('raw',new TextEncoder().encode(clave),'PBKDF2',false,['deriveBits']);
+  const bits=await window.crypto.subtle.deriveBits({name:'PBKDF2',salt:sal,iterations:120000,hash:'SHA-256'},material,256);
+  return new Uint8Array(bits);
+}
+async function gestionarAcceso(event){
+  event.preventDefault();
+  const boton=$('acceso-enviar'), clave=$('acceso-clave').value;
+  boton.disabled=true;
+  $('acceso-error').textContent='';
+  try{
+    const guardado=JSON.parse(localStorage.getItem(CLAVE_ACCESO)||'null');
+    if(modoAcceso==='crear'){
+      if(clave!==$('acceso-confirmar').value){ $('acceso-error').textContent='Las contraseñas no coinciden.'; return; }
+      if($('acceso-respuesta').value!==$('acceso-respuesta-confirmar').value){ $('acceso-error').textContent='Las respuestas no coinciden.'; return; }
+      const pregunta=$('acceso-pregunta').value.trim(), respuesta=normalizarRespuesta($('acceso-respuesta').value);
+      if(!pregunta||!respuesta){ $('acceso-error').textContent='Escriba su pregunta y respuesta de validación.'; return; }
+      const sal=window.crypto.getRandomValues(new Uint8Array(16)), respuestaSal=window.crypto.getRandomValues(new Uint8Array(16));
+      const hash=await hashAcceso(clave,sal), respuestaHash=await hashAcceso(respuesta,respuestaSal);
+      localStorage.setItem(CLAVE_ACCESO,JSON.stringify({sal:codificarBase64(sal),hash:codificarBase64(hash),pregunta,respuestaSal:codificarBase64(respuestaSal),respuestaHash:codificarBase64(respuestaHash)}));
+      entrarEnLaAplicacion();
+    }else if(modoAcceso==='entrar'){
+      if(!guardado||!guardado.sal||!guardado.hash){ configurarPantallaAcceso('crear'); $('acceso-error').textContent='No se encontró una contraseña guardada. Cree una nueva para continuar.'; return; }
+      const hash=await hashAcceso(clave,Uint8Array.from(atob(guardado.sal),c=>c.charCodeAt(0)));
+      if(codificarBase64(hash)!==guardado.hash){ $('acceso-error').textContent='La contraseña no es correcta.'; return; }
+      if(!guardado.pregunta||!guardado.respuestaSal||!guardado.respuestaHash){
+        configurarPantallaAcceso('pregunta');
+        $('acceso-error').textContent='Configure su pregunta de validación para habilitar la recuperación.';
+        return;
+      }
+      entrarEnLaAplicacion();
+    }else if(modoAcceso==='pregunta'){
+      const pregunta=$('acceso-pregunta').value.trim(), respuesta=normalizarRespuesta($('acceso-respuesta').value);
+      if(!pregunta||!respuesta){ $('acceso-error').textContent='Escriba su pregunta y respuesta de validación.'; return; }
+      const respuestaSal=window.crypto.getRandomValues(new Uint8Array(16));
+      guardado.pregunta=pregunta;
+      guardado.respuestaSal=codificarBase64(respuestaSal);
+      guardado.respuestaHash=codificarBase64(await hashAcceso(respuesta,respuestaSal));
+      localStorage.setItem(CLAVE_ACCESO,JSON.stringify(guardado));
+      entrarEnLaAplicacion();
+    }else if(modoAcceso==='recuperar'){
+      if(!guardado||!guardado.respuestaSal||!guardado.respuestaHash){ $('acceso-error').textContent='No hay una pregunta de validación configurada.'; return; }
+      const respuestaHash=await hashAcceso(normalizarRespuesta($('acceso-respuesta-recuperacion').value),Uint8Array.from(atob(guardado.respuestaSal),c=>c.charCodeAt(0)));
+      if(codificarBase64(respuestaHash)!==guardado.respuestaHash){ $('acceso-error').textContent='La respuesta de validación no es correcta.'; return; }
+      if(clave!==$('acceso-confirmar').value){ $('acceso-error').textContent='Las contraseñas nuevas no coinciden.'; return; }
+      const sal=window.crypto.getRandomValues(new Uint8Array(16));
+      guardado.sal=codificarBase64(sal);
+      guardado.hash=codificarBase64(await hashAcceso(clave,sal));
+      localStorage.setItem(CLAVE_ACCESO,JSON.stringify(guardado));
+      entrarEnLaAplicacion();
+    }
+  }catch(error){
+    $('acceso-error').textContent=error instanceof Error&&error.name==='QuotaExceededError'?'No se pudo guardar la contraseña. Compruebe el espacio disponible en el dispositivo.':error instanceof Error?error.message:'No se pudo verificar el acceso. Inténtelo de nuevo.';
+  }finally{ boton.disabled=false; }
+}
+function entrarEnLaAplicacion(){
+  document.body.classList.add('autenticado');
+  $('pantalla-acceso').classList.add('oculto');
+}
+function iniciarRestablecimiento(){
+  try{
+    const guardado=JSON.parse(localStorage.getItem(CLAVE_ACCESO)||'null');
+    if(!guardado||!guardado.pregunta||!guardado.respuestaSal||!guardado.respuestaHash){
+      $('acceso-error').textContent='Este acceso aún no tiene pregunta. Inicie sesión para configurarla antes de poder restablecer la contraseña.';
+      return;
+    }
+    configurarPantallaAcceso('recuperar');
+  }catch(error){ $('acceso-error').textContent=error instanceof Error?error.message:'No se pudo cargar la pregunta de validación.'; return; }
+  $('acceso-respuesta-recuperacion').focus();
+}
+function cerrarSesion(){
+  document.querySelectorAll('dialog[open]').forEach(dialog=>dialog.close());
+  document.body.classList.remove('autenticado');
+  $('pantalla-acceso').classList.remove('oculto');
+  configurarPantallaAcceso('entrar');
+  $('acceso-clave').focus();
+}
+configurarPantallaAcceso('inicio');
+
+/* =================== PESTAÑAS =================== */
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>mostrarTab(b.dataset.tab)));
+function mostrarTab(nombre){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('activa', b.dataset.tab===nombre));
+  document.querySelectorAll('section.tab').forEach(s=>s.classList.toggle('activa', s.id==='tab-'+nombre));
+  if(nombre==='pagos') pintarPagos();
+  if(nombre==='contab') pintarContab();
+  if(nombre==='ajustes') { cargarEmpresa(); infoDatos(); }
+  window.scrollTo(0,0);
+}
+
+/* =================== CLIENTES =================== */
+function clientesActivos(){ return DB.clientes.filter(c=>c.activo!==false); }
+
+function pintarClientes(){
+  const activos = clientesActivos();
+  $('res-clientes').textContent = activos.length;
+  $('res-plazas').textContent = new Set(activos.map(c=>String(c.plaza).trim().toLowerCase())).size;
+  $('res-cuotas').textContent = eur(activos.reduce((s,c)=>s+(+c.cuota||0),0));
+
+  const q = $('buscar').value.trim().toLowerCase();
+  const verBajas = $('ver-bajas').checked;
+  let lista = DB.clientes.filter(c => verBajas || c.activo!==false);
+  if(q) lista = lista.filter(c => [c.nombre,c.apellidos,c.matricula,c.matricula2,c.plaza,c.telefono,c.dni,c.vehiculo].join(' ').toLowerCase().includes(q));
+  lista.sort((a,b)=> (a.activo===false)-(b.activo===false) || String(a.plaza).localeCompare(String(b.plaza),'es',{numeric:true}));
+
+  const cont=$('lista-clientes');
+  if(!lista.length){ cont.innerHTML='<div class="vacio">No hay clientes. Pulse el botón verde para dar de alta el primero.</div>'; return; }
+  const periodo = hoyISO().slice(0,7);
+  cont.innerHTML = lista.map(c=>{
+    const pagado = DB.pagos.some(p=>p.clienteId===c.id && p.periodo===periodo);
+    const estado = c.activo===false ? '<span class="estado baja">BAJA</span>' : (pagado ? '<span class="estado pagado">✔ Al día</span>' : '<span class="estado pendiente">✖ Debe este mes</span>');
+    return `<div class="cliente-item ${c.activo===false?'baja':''}" onclick="verFicha('${c.id}')">
+      <div class="plaza"><small>PLAZA</small>${esc(c.plaza)}</div>
+      <div class="info">
+        <div class="nombre">${esc(nombreCompleto(c))}</div>
+        <div class="detalle">🚘 ${esc(c.matricula)} ${c.vehiculo?'· '+esc(c.vehiculo):''} &nbsp; 📞 ${esc(c.telefono)} &nbsp; 💶 ${eur(c.cuota)}/mes</div>
+      </div>
+      ${estado}
+    </div>`;
+  }).join('');
+}
+
+function nuevoCliente(){
+  $('form-cliente').reset();
+  $('c-id').value='';
+  $('c-fechaAlta').value=hoyISO();
+  $('c-diaPago').value=1; $('c-fianza').value=0;
+  $('form-titulo').textContent='➕ Alta de cliente';
+  abrirPanel('form-cliente-panel');
+  setTimeout(()=>$('c-nombre').focus(),100);
+}
+function editarCliente(id){
+  const c = DB.clientes.find(x=>x.id===id); if(!c) return;
+  $('form-cliente').reset();
+  const campos=['nombre','apellidos','dni','telefono','telefono2','email','direccion','matricula','vehiculo','color','matricula2','plaza','planta','tipo','mando','llaves','fechaAlta','cuota','diaPago','formaPago','iban','fianza','observaciones'];
+  campos.forEach(k=>{ if($('c-'+k)) $('c-'+k).value = c[k]??''; });
+  $('c-id').value=c.id;
+  $('form-titulo').textContent='✏️ Modificar cliente';
+  abrirPanel('form-cliente-panel');
+}
+function guardarCliente(ev){
+  ev.preventDefault();
+  const id=$('c-id').value;
+  const obj = id ? DB.clientes.find(x=>x.id===id) : {id:uid(), activo:true, creado:hoyISO()};
+  const campos=['nombre','apellidos','dni','telefono','telefono2','email','direccion','matricula','vehiculo','color','matricula2','plaza','planta','tipo','mando','llaves','fechaAlta','diaPago','formaPago','iban','observaciones'];
+  campos.forEach(k=>obj[k]=$('c-'+k).value.trim());
+  obj.dni=obj.dni.toUpperCase(); obj.matricula=obj.matricula.toUpperCase(); obj.matricula2=obj.matricula2.toUpperCase();
+  obj.cuota = +$('c-cuota').value||0; obj.fianza = +$('c-fianza').value||0;
+
+  // Aviso si la plaza ya está ocupada por otro cliente activo
+  const ocupada = clientesActivos().find(x=>x.id!==obj.id && String(x.plaza).trim().toLowerCase()===obj.plaza.toLowerCase());
+  if(ocupada && !confirm(`⚠️ La plaza ${obj.plaza} ya la tiene ${nombreCompleto(ocupada)}.\n¿Desea guardar de todas formas?`)) return;
+
+  if(!id) DB.clientes.push(obj);
+  guardar(); pintarClientes();
+  toast(id?'Cliente modificado ✔':'Cliente dado de alta ✔');
+  verFicha(obj.id);
+}
+function cerrarFormulario(){ abrirPanel('lista-clientes-panel'); pintarClientes(); }
+function abrirPanel(id){
+  ['lista-clientes-panel','form-cliente-panel','ficha-panel'].forEach(p=>$(p).classList.toggle('oculto', p!==id));
+  window.scrollTo(0,0);
+}
+
+function verFicha(id){
+  const c = DB.clientes.find(x=>x.id===id); if(!c) return;
+  const pagos = DB.pagos.filter(p=>p.clienteId===id).sort((a,b)=>b.periodo.localeCompare(a.periodo));
+  const total = pagos.reduce((s,p)=>s+(+p.importe||0),0);
+  const dato=(t,v)=> v? `<tr><th style="width:38%">${t}</th><td class="negrita">${esc(v)}</td></tr>` : '';
+  $('ficha-contenido').innerHTML = `
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div class="plaza" style="width:90px;height:90px;border-radius:18px;background:var(--amarillo);font-weight:900;font-size:1.7rem;display:grid;place-items:center;text-align:center;line-height:1"><small style="font-size:.6rem">PLAZA</small>${esc(c.plaza)}</div>
+      <div style="flex:1"><h2 style="margin:0">${esc(nombreCompleto(c))}</h2>
+      ${c.activo===false?'<span class="estado baja">DADO DE BAJA el '+fechaES(c.fechaBaja)+'</span>':'<span class="estado pagado">Cliente activo</span>'}</div>
+    </div>
+    <div class="fila-botones">
+      <button class="btn morado" onclick="pdfFichaCliente('${c.id}')">📄 FICHA EN PDF</button>
+      <button class="btn" onclick="editarCliente('${c.id}')">✏️ Modificar</button>
+      <button class="btn verde" onclick="abrirCobro('${c.id}','${hoyISO().slice(0,7)}')">💶 Cobrar este mes</button>
+      ${c.activo===false
+        ? `<button class="btn naranja" onclick="reactivar('${c.id}')">↩ Volver a dar de alta</button>`
+        : `<button class="btn naranja" onclick="darBaja('${c.id}')">⛔ Dar de baja</button>`}
+      <button class="btn rojo peq" onclick="eliminarCliente('${c.id}')">🗑 Eliminar</button>
+      <button class="btn gris" onclick="cerrarFormulario()">← Volver</button>
+    </div>
+    <div class="grid" style="margin-top:14px">
+      <div><h3>👤 Cliente</h3><table>
+        ${dato('DNI / NIE',c.dni)}${dato('Teléfono',c.telefono)}${dato('Otro teléfono',c.telefono2)}${dato('Correo',c.email)}${dato('Dirección',c.direccion)}
+      </table></div>
+      <div><h3>🚘 Vehículo y plaza</h3><table>
+        ${dato('Matrícula',c.matricula)}${dato('2ª matrícula',c.matricula2)}${dato('Vehículo',c.vehiculo)}${dato('Color',c.color)}
+        ${dato('Plaza',c.plaza)}${dato('Planta / zona',c.planta)}${dato('Tipo',c.tipo)}${dato('Mando / tarjeta',c.mando)}${dato('Llaves',c.llaves)}
+      </table></div>
+      <div><h3>💶 Contrato</h3><table>
+        ${dato('Fecha de alta',fechaES(c.fechaAlta))}${dato('Cuota mensual',eur(c.cuota))}${dato('Día de pago',c.diaPago)}${dato('Forma de pago',c.formaPago)}${dato('IBAN',c.iban)}${dato('Fianza',c.fianza?eur(c.fianza):'')}
+        ${dato('Observaciones',c.observaciones)}
+      </table></div>
+    </div>
+    <h3>📜 Historial de pagos (total cobrado: ${eur(total)})</h3>
+    <div class="tabla-scroll">${pagos.length? `<table><tr><th>Mes</th><th>Fecha cobro</th><th class="derecha">Importe</th><th>Forma</th><th>Nota</th><th></th></tr>
+      ${pagos.map(p=>`<tr><td class="negrita" style="text-transform:capitalize">${nombreMes(p.periodo)}</td><td>${fechaES(p.fecha)}</td><td class="derecha negrita">${eur(p.importe)}</td><td>${esc(p.forma)}</td><td>${esc(p.nota)}</td>
+        <td><button class="btn morado peq" onclick="pdfRecibo('${p.id}')">🧾 Recibo</button> <button class="btn rojo peq" onclick="anularPago('${p.id}','${c.id}')">✖</button></td></tr>`).join('')}</table>`
+      : '<div class="vacio">Todavía no hay pagos registrados.</div>'}</div>`;
+  abrirPanel('ficha-panel');
+}
+function darBaja(id){
+  confirmar('¿Dar de baja a este cliente? Dejará de aparecer en los pagos del mes, pero se conserva su historial.', ()=>{
+    const c=DB.clientes.find(x=>x.id===id); c.activo=false; c.fechaBaja=hoyISO(); guardar(); verFicha(id); toast('Cliente dado de baja');
+  });
+}
+function reactivar(id){ const c=DB.clientes.find(x=>x.id===id); c.activo=true; delete c.fechaBaja; guardar(); verFicha(id); toast('Cliente activo de nuevo ✔'); }
+function eliminarCliente(id){
+  confirmar('¿ELIMINAR definitivamente este cliente y TODOS sus pagos? Esta acción no se puede deshacer. (Si solo deja el parking, use «Dar de baja».)', ()=>{
+    DB.clientes=DB.clientes.filter(x=>x.id!==id); DB.pagos=DB.pagos.filter(p=>p.clienteId!==id); guardar(); cerrarFormulario(); toast('Cliente eliminado');
+  });
+}
+
+/* =================== PAGOS =================== */
+let periodoPagos = hoyISO().slice(0,7);
+let filtroPagos = 'todos';
+function cambiarMes(n){ let [a,m]=periodoPagos.split('-').map(Number); m+=n; if(m>12){m=1;a++} if(m<1){m=12;a--} periodoPagos=`${a}-${String(m).padStart(2,'0')}`; pintarPagos(); }
+function hoyMes(){ periodoPagos=hoyISO().slice(0,7); pintarPagos(); }
+
+function clientesDelPeriodo(periodo){
+  // Activos ese mes: fecha de alta <= fin del periodo, y (sin baja o baja >= inicio del periodo)
+  return DB.clientes.filter(c=>{
+    const alta=(c.fechaAlta||'0000-01').slice(0,7);
+    if(alta>periodo) return false;
+    if(c.activo===false && c.fechaBaja && c.fechaBaja.slice(0,7)<periodo) return false;
+    return true;
+  }).sort((a,b)=>String(a.plaza).localeCompare(String(b.plaza),'es',{numeric:true}));
+}
+function pintarPagos(){
+  $('mes-actual').textContent = nombreMes(periodoPagos);
+  const lista = clientesDelPeriodo(periodoPagos);
+  let cobrado=0, pendiente=0, n=0;
+  const filas = lista.map(c=>{
+    const p = DB.pagos.find(x=>x.clienteId===c.id && x.periodo===periodoPagos);
+    if(p){ cobrado+=+p.importe||0; n++; } else pendiente+=+c.cuota||0;
+    return {c,p};
+  });
+  $('p-cobrado').textContent=eur(cobrado); $('p-pendiente').textContent=eur(pendiente); $('p-num').textContent=`${n} / ${lista.length}`;
+  const visibles = filtroPagos==='pendiente' ? filas.filter(f=>!f.p) : filas;
+  $('lista-pagos').innerHTML = visibles.length ? visibles.map(({c,p})=>`
+    <div class="pago-fila ${p?'pagado':'pendiente'}">
+      <div class="plaza" style="width:64px;height:64px;border-radius:12px;background:var(--amarillo);font-weight:900;font-size:1.2rem;display:grid;place-items:center;text-align:center;line-height:1;flex:none"><small style="font-size:.55rem">PLAZA</small>${esc(c.plaza)}</div>
+      <div class="info" onclick="verFicha('${c.id}');mostrarTab('clientes')" style="cursor:pointer">
+        <div class="nombre">${esc(nombreCompleto(c))}</div>
+        <div class="detalle">${esc(c.matricula)} · Cuota ${eur(c.cuota)} ${c.diaPago?'· Día '+esc(c.diaPago):''} ${c.activo===false?'· <b>BAJA</b>':''}</div>
+        ${p?`<div class="detalle">✔ Cobrado el ${fechaES(p.fecha)} · ${esc(p.forma)} ${p.nota?'· '+esc(p.nota):''}</div>`:''}
+      </div>
+      ${p ? `<span class="estado pagado">✔ PAGADO ${eur(p.importe)}</span>
+             <button class="btn morado peq" onclick="pdfRecibo('${p.id}')">🧾 Recibo</button>
+             <button class="btn gris peq" onclick="anularPago('${p.id}')">Anular</button>`
+          : `<span class="estado pendiente">✖ PENDIENTE</span>
+             <button class="btn verde" onclick="abrirCobro('${c.id}','${periodoPagos}')">💶 COBRAR</button>`}
+    </div>`).join('') : `<div class="vacio">${filtroPagos==='pendiente'?'🎉 ¡Nadie debe nada este mes!':'No hay clientes activos en este mes.'}</div>`;
+}
+function abrirCobro(clienteId, periodo){
+  const c=DB.clientes.find(x=>x.id===clienteId); if(!c) return;
+  if(DB.pagos.some(p=>p.clienteId===clienteId && p.periodo===periodo)){ toast('Este mes ya está cobrado','error'); return; }
+  $('k-clienteId').value=clienteId; $('k-periodo').value=periodo;
+  $('dlg-cobro-cliente').innerHTML=`${esc(nombreCompleto(c))} · Plaza ${esc(c.plaza)}<br><span style="color:var(--verde);text-transform:capitalize">${nombreMes(periodo)}</span>`;
+  $('k-importe').value=c.cuota; $('k-fecha').value=hoyISO(); $('k-forma').value=c.formaPago||'Efectivo'; $('k-nota').value='';
+  $('dlg-cobro').showModal();
+}
+function confirmarCobro(){
+  const pago={id:uid(), clienteId:$('k-clienteId').value, periodo:$('k-periodo').value, importe:+$('k-importe').value||0, fecha:$('k-fecha').value||hoyISO(), forma:$('k-forma').value, nota:$('k-nota').value.trim()};
+  DB.pagos.push(pago); guardar(); $('dlg-cobro').close();
+  toast('Cobro registrado ✔');
+  pintarPagos(); pintarClientes();
+  if(!$('ficha-panel').classList.contains('oculto')) verFicha(pago.clienteId);
+}
+function anularPago(id, volverFicha){
+  confirmar('¿Anular este cobro? El mes volverá a aparecer como pendiente.', ()=>{
+    DB.pagos=DB.pagos.filter(p=>p.id!==id); guardar(); pintarPagos(); pintarClientes(); if(volverFicha) verFicha(volverFicha); toast('Cobro anulado');
+  });
+}
+
+/* =================== CONTABILIDAD =================== */
+let anioContab = new Date().getFullYear();
+function cambiarAnio(n){ anioContab+=n; pintarContab(); }
+function pintarContab(){
+  $('anio-actual').textContent='Año '+anioContab;
+  $('g-fecha').value ||= hoyISO();
+  const pagos=DB.pagos.filter(p=>(p.fecha||p.periodo).startsWith(anioContab));
+  const gastos=DB.gastos.filter(g=>g.fecha.startsWith(anioContab));
+  const ing=Array(12).fill(0), gas=Array(12).fill(0);
+  pagos.forEach(p=>ing[+(p.fecha||p.periodo).slice(5,7)-1]+= +p.importe||0);
+  gastos.forEach(g=>gas[+g.fecha.slice(5,7)-1]+= +g.importe||0);
+  const ti=ing.reduce((a,b)=>a+b,0), tg=gas.reduce((a,b)=>a+b,0);
+  $('k-ingresos').textContent=eur(ti); $('k-gastos').textContent=eur(tg); $('k-saldo').textContent=eur(ti-tg);
+  $('tabla-meses').innerHTML=`<table><tr><th>Mes</th><th class="derecha">Ingresos</th><th class="derecha">Gastos</th><th class="derecha">Resultado</th></tr>
+    ${MESES.map((m,i)=>`<tr><td class="negrita" style="text-transform:capitalize">${m}</td><td class="derecha" style="color:var(--verde)">${eur(ing[i])}</td><td class="derecha" style="color:var(--rojo)">${eur(gas[i])}</td><td class="derecha negrita" style="color:${ing[i]-gas[i]>=0?'var(--verde)':'var(--rojo)'}">${eur(ing[i]-gas[i])}</td></tr>`).join('')}
+    <tr style="background:var(--morado-claro)"><td class="negrita">TOTAL</td><td class="derecha negrita">${eur(ti)}</td><td class="derecha negrita">${eur(tg)}</td><td class="derecha negrita">${eur(ti-tg)}</td></tr></table>`;
+  gastos.sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  $('tabla-gastos').innerHTML = gastos.length ? `<table><tr><th>Fecha</th><th>Concepto</th><th class="derecha">Importe</th><th>Nota</th><th></th></tr>
+    ${gastos.map(g=>`<tr><td>${fechaES(g.fecha)}</td><td class="negrita">${esc(g.concepto)}</td><td class="derecha negrita" style="color:var(--rojo)">${eur(g.importe)}</td><td>${esc(g.nota)}</td><td><button class="btn rojo peq" onclick="borrarGasto('${g.id}')">✖</button></td></tr>`).join('')}</table>` : '<div class="vacio">No hay gastos apuntados este año.</div>';
+  pagos.sort((a,b)=>(b.fecha||'').localeCompare(a.fecha||''));
+  $('tabla-cobros').innerHTML = pagos.length ? `<table><tr><th>Fecha</th><th>Cliente</th><th>Plaza</th><th>Mes</th><th class="derecha">Importe</th><th>Forma</th></tr>
+    ${pagos.map(p=>{const c=DB.clientes.find(x=>x.id===p.clienteId)||{}; return `<tr><td>${fechaES(p.fecha)}</td><td class="negrita">${esc(nombreCompleto(c))}</td><td>${esc(c.plaza)}</td><td style="text-transform:capitalize">${nombreMes(p.periodo)}</td><td class="derecha negrita" style="color:var(--verde)">${eur(p.importe)}</td><td>${esc(p.forma)}</td></tr>`}).join('')}</table>` : '<div class="vacio">No hay cobros este año.</div>';
+}
+function guardarGasto(ev){
+  ev.preventDefault();
+  DB.gastos.push({id:uid(), fecha:$('g-fecha').value, concepto:$('g-concepto').value.trim(), importe:+$('g-importe').value||0, nota:$('g-nota').value.trim()});
+  guardar(); $('g-concepto').value=''; $('g-importe').value=''; $('g-nota').value='';
+  anioContab=+$('g-fecha').value.slice(0,4); pintarContab(); toast('Gasto guardado ✔');
+}
+function borrarGasto(id){ confirmar('¿Borrar este gasto?', ()=>{ DB.gastos=DB.gastos.filter(g=>g.id!==id); guardar(); pintarContab(); toast('Gasto borrado'); }); }
+
+/* =================== EXCEL =================== */
+async function exportarExcel(anio){
+  if(!window.ExcelJS){ toast('No se pudo cargar el generador de Excel. Recargue la aplicación e inténtelo de nuevo.','error'); return; }
+  const logo=logoDocumentoDataURL('image/png');
+  if(!logo) return;
+  const filtra = f => anio ? f.filter(x=>(x.fecha||x.periodo||'').startsWith(anio)) : f;
+  const wb = new window.ExcelJS.Workbook();
+  wb.creator='PARKING AUTOL';
+  wb.subject='Control de clientes, plazas y pagos';
+  const logoId=wb.addImage({base64:logo.split(',')[1],extension:'png'});
+  const cli = DB.clientes.map(c=>({Plaza:c.plaza,Planta:c.planta,'Tipo plaza':c.tipo,Nombre:c.nombre,Apellidos:c.apellidos,DNI:c.dni,Teléfono:c.telefono,'Otro teléfono':c.telefono2,Email:c.email,Dirección:c.direccion,Matrícula:c.matricula,'2ª matrícula':c.matricula2,Vehículo:c.vehiculo,Color:c.color,'Mando/tarjeta':c.mando,Llaves:c.llaves,'Fecha alta':c.fechaAlta,'Cuota mensual (€)':+c.cuota||0,'Día pago':c.diaPago,'Forma pago':c.formaPago,IBAN:c.iban,'Fianza (€)':+c.fianza||0,Estado:c.activo===false?'BAJA':'ACTIVO','Fecha baja':c.fechaBaja||'',Observaciones:c.observaciones}));
+  const pagos = filtra(DB.pagos).sort((a,b)=>(a.fecha||'').localeCompare(b.fecha||'')).map(p=>{const c=DB.clientes.find(x=>x.id===p.clienteId)||{}; return {'Fecha cobro':p.fecha,'Mes que paga':nombreMes(p.periodo),Cliente:nombreCompleto(c),Plaza:c.plaza,Matrícula:c.matricula,'Importe (€)':+p.importe||0,'Forma de pago':p.forma,Nota:p.nota};});
+  const gastos = filtra(DB.gastos).sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(g=>({Fecha:g.fecha,Concepto:g.concepto,'Importe (€)':+g.importe||0,Nota:g.nota}));
+  // Resumen mensual
+  const resumen={};
+  filtra(DB.pagos).forEach(p=>{const k=(p.fecha||p.periodo).slice(0,7); resumen[k]=resumen[k]||{i:0,g:0}; resumen[k].i+=+p.importe||0;});
+  filtra(DB.gastos).forEach(g=>{const k=g.fecha.slice(0,7); resumen[k]=resumen[k]||{i:0,g:0}; resumen[k].g+=+g.importe||0;});
+  const res = Object.keys(resumen).sort().map(k=>({Mes:nombreMes(k),'Ingresos (€)':resumen[k].i,'Gastos (€)':resumen[k].g,'Resultado (€)':resumen[k].i-resumen[k].g}));
+  res.push({Mes:'TOTAL','Ingresos (€)':res.reduce((s,r)=>s+r['Ingresos (€)'],0),'Gastos (€)':res.reduce((s,r)=>s+r['Gastos (€)'],0),'Resultado (€)':res.reduce((s,r)=>s+r['Resultado (€)'],0)});
+  // Cuadro de pagos (clientes x meses) del año
+  let cuadro=[];
+  if(anio){
+    cuadro = DB.clientes.map(c=>{const fila={Plaza:c.plaza,Cliente:nombreCompleto(c),'Cuota (€)':+c.cuota||0}; let t=0;
+      MESES.forEach((m,i)=>{const per=`${anio}-${String(i+1).padStart(2,'0')}`; const p=DB.pagos.find(x=>x.clienteId===c.id&&x.periodo===per); fila[m.charAt(0).toUpperCase()+m.slice(1)]=p?+p.importe:''; t+=p?+p.importe:0;});
+      fila['Total año (€)']=t; return fila;});
+  }
+  const add=(datos,nombre,anchos)=>{
+    const filas=datos.length?datos:[{'Sin datos':''}], columnas=Object.keys(filas[0]);
+    const ws=wb.addWorksheet(nombre);
+    ws.columns=columnas.map((key,i)=>({key,width:anchos&&anchos[i]||18}));
+    for(let i=0;i<6;i++) ws.addRow([]);
+    for(let i=1;i<=5;i++) ws.getRow(i).height=20;
+    ws.addImage(logoId,{tl:{col:0,row:0},ext:{width:150,height:100}});
+    ws.getCell('D2').value='PARKING AUTOL';
+    ws.getCell('D2').font={bold:true,size:20,color:{argb:'FF1E40AF'}};
+    ws.getCell('D3').value='Control de clientes, plazas y pagos';
+    ws.getCell('D3').font={size:12,color:{argb:'FF374151'}};
+    ws.getCell('D5').value=nombre+(anio?' · '+anio:'');
+    ws.getCell('D5').font={bold:true,size:14,color:{argb:'FF1E40AF'}};
+    const cabecera=ws.addRow(columnas);
+    cabecera.height=24;
+    cabecera.eachCell(celda=>{celda.font={bold:true,color:{argb:'FFFFFFFF'}};celda.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1E40AF'}};celda.alignment={vertical:'middle'};});
+    filas.forEach(fila=>ws.addRow(columnas.map(columna=>fila[columna]??'')));
+    ws.views=[{state:'frozen',ySplit:7}];
+    ws.autoFilter={from:{row:7,column:1},to:{row:ws.rowCount,column:columnas.length}};
+  };
+  add(res,'Resumen',[18,14,14,14]);
+  add(pagos,'Cobros',[12,18,28,8,12,12,14,24]);
+  add(gastos,'Gastos',[12,30,12,30]);
+  if(anio) add(cuadro,'Cuadro pagos '+anio,[8,28,10,...Array(12).fill(9),12]);
+  add(cli,'Clientes',[8,12,12,14,20,12,12,12,24,30,12,12,18,10,12,8,12,12,8,14,26,10,10,12,30]);
+  try{
+    const buffer=await wb.xlsx.writeBuffer();
+    const url=URL.createObjectURL(new Blob([buffer],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    const enlace=document.createElement('a');
+    enlace.href=url; enlace.download=`Contabilidad_Parking_Autol_${anio||'completa'}.xlsx`;
+    document.body.appendChild(enlace); enlace.click(); enlace.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+    toast('Excel descargado ✔');
+  }catch(error){
+    toast('No se pudo generar el Excel: '+(error instanceof Error?error.message:'error desconocido'),'error');
+  }
+}
+
+/* =================== PDF =================== */
+function pdfDoc(){ if(!window.jspdf){ toast('Sin conexión: no se puede generar el PDF ahora','error'); return null; } return new window.jspdf.jsPDF({unit:'mm',format:'a4'}); }
+const logoDocumentoCache={};
+function logoDocumentoDataURL(tipo){
+  if(logoDocumentoCache[tipo]) return logoDocumentoCache[tipo];
+  const imagen=$('logo-app');
+  if(!imagen||!imagen.complete||!imagen.naturalWidth){ toast('No se pudo cargar el logo de Parking Autol. Compruebe la imagen e inténtelo de nuevo.','error'); return null; }
+  const ancho=600, alto=Math.round(ancho*imagen.naturalHeight/imagen.naturalWidth);
+  const canvas=document.createElement('canvas'); canvas.width=ancho; canvas.height=alto;
+  const contexto=canvas.getContext('2d');
+  if(!contexto){ toast('No se pudo preparar el logo para el documento.','error'); return null; }
+  contexto.fillStyle='#fff'; contexto.fillRect(0,0,ancho,alto); contexto.drawImage(imagen,0,0,ancho,alto);
+  try{ logoDocumentoCache[tipo]=canvas.toDataURL(tipo,tipo==='image/jpeg'?0.9:undefined); }
+  catch(error){ toast('No se pudo preparar el logo para el documento: '+(error instanceof Error?error.message:'error desconocido'),'error'); return null; }
+  return logoDocumentoCache[tipo];
+}
+function pdfCabecera(doc, titulo){
+  const e=DB.empresa||{};
+  const logo=logoDocumentoDataURL('image/jpeg');
+  if(!logo) return null;
+  doc.setFillColor(30,64,175); doc.rect(0,0,210,28,'F');
+  doc.setFillColor(250,204,21); doc.rect(0,28,210,3,'F');
+  doc.setFillColor(255,255,255); doc.roundedRect(174,2,32,24,1,1,'F'); doc.addImage(logo,'JPEG',175,3,30,20);
+  doc.setTextColor(255,255,255); doc.setFont('helvetica','bold'); doc.setFontSize(20); doc.text((e.nombre||'PARKING AUTOL').toUpperCase(), 14, 13,{maxWidth:155});
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text([e.titular, e.nif?'NIF: '+e.nif:'', e.direccion, e.telefono?'Tel. '+e.telefono:''].filter(Boolean).join('  ·  ') || 'Control de clientes y plazas', 14, 21,{maxWidth:155});
+  doc.setTextColor(30,64,175); doc.setFontSize(16); doc.setFont('helvetica','bold'); doc.text(titulo, 14, 42);
+  doc.setTextColor(100); doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.text('Generado el '+fechaES(hoyISO()), 196, 42, {align:'right'});
+  doc.setTextColor(0);
+  return 50;
+}
+function pdfTabla(doc, y, cabeceras, filas, anchos, opciones={}){
+  const x0=14, alto=8; const total=anchos.reduce((a,b)=>a+b,0); const escala=182/total; anchos=anchos.map(a=>a*escala);
+  const pintaCab=()=>{ doc.setFillColor(219,234,254); doc.rect(x0,y,182,alto,'F'); doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(30,64,175); let x=x0; cabeceras.forEach((h,i)=>{doc.text(String(h),x+2,y+5.5); x+=anchos[i];}); y+=alto; doc.setTextColor(0); doc.setFont('helvetica','normal'); };
+  pintaCab();
+  filas.forEach((f,idx)=>{
+    if(y>280){ doc.addPage(); y=20; pintaCab(); }
+    if(idx%2) { doc.setFillColor(248,248,248); doc.rect(x0,y,182,alto,'F'); }
+    if(opciones.colorFila){ const c=opciones.colorFila(f); if(c){ doc.setFillColor(...c); doc.rect(x0,y,182,alto,'F'); } }
+    let x=x0; f.forEach((v,i)=>{ const txt=doc.splitTextToSize(String(v??''), anchos[i]-3)[0]||''; const der=opciones.derecha&&opciones.derecha.includes(i); doc.text(txt, der?x+anchos[i]-2:x+2, y+5.5, der?{align:'right'}:undefined); x+=anchos[i]; });
+    doc.setDrawColor(220); doc.line(x0,y+alto,x0+182,y+alto); y+=alto;
+  });
+  return y;
+}
+function pdfFichaCliente(id){
+  const c=DB.clientes.find(x=>x.id===id); if(!c) return; const doc=pdfDoc(); if(!doc) return;
+  let y=pdfCabecera(doc,'FICHA DE CLIENTE · PLAZA '+c.plaza); if(y===null) return;
+  // Caja plaza
+  doc.setFillColor(250,204,21); doc.roundedRect(160,46,36,22,3,3,'F'); doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.text('PLAZA',178,52,{align:'center'}); doc.setFontSize(18); doc.text(String(c.plaza),178,63,{align:'center'});
+  doc.setFontSize(14); doc.text(nombreCompleto(c),14,y+2); y+=6;
+  doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(c.activo===false?185:21, c.activo===false?28:128, c.activo===false?28:61); doc.text(c.activo===false?'DADO DE BAJA el '+fechaES(c.fechaBaja):'CLIENTE ACTIVO',14,y+2); doc.setTextColor(0); y+=8;
+  const bloque=(titulo,pares)=>{
+    pares=pares.filter(p=>p[1]); if(!pares.length) return;
+    if(y>250){doc.addPage();y=20;}
+    doc.setFillColor(30,64,175); doc.rect(14,y,182,7,'F'); doc.setTextColor(255); doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text(titulo,16,y+5); doc.setTextColor(0); y+=9;
+    pares.forEach(([k,v])=>{ doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.text(k+':',16,y+4); doc.setFont('helvetica','normal'); const lineas=doc.splitTextToSize(String(v),125); doc.text(lineas,68,y+4); y+=6*lineas.length; });
+    y+=4;
+  };
+  bloque('DATOS DEL CLIENTE',[['Nombre',nombreCompleto(c)],['DNI / NIE',c.dni],['Teléfono',c.telefono],['Otro teléfono',c.telefono2],['Correo',c.email],['Dirección',c.direccion]]);
+  bloque('VEHÍCULO',[['Matrícula',c.matricula],['2ª matrícula',c.matricula2],['Marca y modelo',c.vehiculo],['Color',c.color]]);
+  bloque('PLAZA DE PARKING',[['Número de plaza',c.plaza],['Planta / zona',c.planta],['Tipo de plaza',c.tipo],['Mando / tarjeta',c.mando],['Llaves entregadas',c.llaves]]);
+  bloque('CONTRATO Y PAGO',[['Fecha de alta',fechaES(c.fechaAlta)],['Cuota mensual',eur(c.cuota)],['Día de pago',c.diaPago],['Forma de pago',c.formaPago],['IBAN',c.iban],['Fianza',c.fianza?eur(c.fianza):''],['Observaciones',c.observaciones]]);
+  const pagos=DB.pagos.filter(p=>p.clienteId===id).sort((a,b)=>b.periodo.localeCompare(a.periodo)).slice(0,24);
+  if(pagos.length){
+    if(y>230){doc.addPage();y=20;}
+    doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(30,64,175); doc.text('HISTORIAL DE PAGOS (últimos '+pagos.length+')',14,y+4); doc.setTextColor(0); y+=7;
+    y=pdfTabla(doc,y,['Mes','Fecha cobro','Importe','Forma de pago','Nota'],pagos.map(p=>[nombreMes(p.periodo),fechaES(p.fecha),eur(p.importe),p.forma,p.nota]),[35,30,28,35,54],{derecha:[2]});
+  }
+  // Firmas
+  if(y>240){doc.addPage();y=20;}
+  y+=18; doc.setDrawColor(0); doc.line(20,y,90,y); doc.line(120,y,190,y); doc.setFontSize(9); doc.text('Firma del cliente',55,y+5,{align:'center'}); doc.text('Firma del parking',155,y+5,{align:'center'});
+  doc.save(`Ficha_${c.plaza}_${nombreCompleto(c).replace(/\s+/g,'_')}.pdf`);
+}
+function pdfListadoClientes(){
+  const doc=pdfDoc(); if(!doc) return;
+  const lista=clientesActivos().sort((a,b)=>String(a.plaza).localeCompare(String(b.plaza),'es',{numeric:true}));
+  let y=pdfCabecera(doc,'LISTADO DE CLIENTES Y PLAZAS ('+lista.length+')'); if(y===null) return;
+  y=pdfTabla(doc,y,['Plaza','Cliente','Teléfono','Matrícula','Vehículo','Cuota','Día'],lista.map(c=>[c.plaza,nombreCompleto(c),c.telefono,c.matricula,c.vehiculo,eur(c.cuota),c.diaPago]),[14,52,26,24,36,20,10],{derecha:[5]});
+  doc.setFont('helvetica','bold'); doc.text('Total cuotas mensuales: '+eur(lista.reduce((s,c)=>s+(+c.cuota||0),0)),196,y+8,{align:'right'});
+  doc.save('Listado_clientes_Parking_Autol.pdf');
+}
+function pdfPagosMes(){
+  const doc=pdfDoc(); if(!doc) return;
+  const lista=clientesDelPeriodo(periodoPagos);
+  let y=pdfCabecera(doc,'PAGOS DE '+nombreMes(periodoPagos).toUpperCase()); if(y===null) return;
+  let cob=0,pen=0;
+  const filas=lista.map(c=>{const p=DB.pagos.find(x=>x.clienteId===c.id&&x.periodo===periodoPagos); if(p)cob+=+p.importe||0; else pen+=+c.cuota||0; return [c.plaza,nombreCompleto(c),c.telefono,eur(c.cuota),p?'PAGADO':'PENDIENTE',p?fechaES(p.fecha):'',p?p.forma:''];});
+  y=pdfTabla(doc,y,['Plaza','Cliente','Teléfono','Cuota','Estado','Fecha cobro','Forma'],filas,[14,52,26,20,24,24,22],{derecha:[3],colorFila:f=>f[4]==='PAGADO'?[220,252,231]:[254,226,226]});
+  doc.setFont('helvetica','bold'); doc.setFontSize(11);
+  doc.setTextColor(21,128,61); doc.text('Cobrado: '+eur(cob),14,y+9); doc.setTextColor(185,28,28); doc.text('Pendiente: '+eur(pen),80,y+9); doc.setTextColor(0);
+  doc.save(`Pagos_${periodoPagos}_Parking_Autol.pdf`);
+}
+function pdfRecibo(pagoId){
+  const p=DB.pagos.find(x=>x.id===pagoId); if(!p) return; const c=DB.clientes.find(x=>x.id===p.clienteId)||{}; const doc=pdfDoc(); if(!doc) return;
+  let y=pdfCabecera(doc,'RECIBO DE PAGO'); if(y===null) return;
+  doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.text('Nº recibo: '+p.id.toUpperCase()+'    Fecha: '+fechaES(p.fecha),14,y); y+=12;
+  doc.setDrawColor(30,64,175); doc.setLineWidth(1); doc.roundedRect(14,y,182,70,4,4); y+=12;
+  doc.setFontSize(12); doc.text('He recibido de:',20,y); doc.setFont('helvetica','bold'); doc.text(nombreCompleto(c)+(c.dni?'  (DNI '+c.dni+')':''),60,y); y+=10;
+  doc.setFont('helvetica','normal'); doc.text('La cantidad de:',20,y); doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(21,128,61); doc.text(eur(p.importe),60,y+1); doc.setTextColor(0); doc.setFontSize(12); y+=12;
+  doc.setFont('helvetica','normal'); doc.text('En concepto de:',20,y); doc.setFont('helvetica','bold'); doc.text('Alquiler plaza de parking nº '+(c.plaza||'')+' · '+nombreMes(p.periodo),60,y); y+=10;
+  doc.setFont('helvetica','normal'); doc.text('Vehículo:',20,y); doc.setFont('helvetica','bold'); doc.text([c.matricula,c.vehiculo].filter(Boolean).join(' · '),60,y); y+=10;
+  doc.setFont('helvetica','normal'); doc.text('Forma de pago:',20,y); doc.setFont('helvetica','bold'); doc.text(p.forma+(p.nota?'  ('+p.nota+')':''),60,y); y+=30;
+  doc.setLineWidth(.3); doc.setDrawColor(0); doc.line(120,y,190,y); doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.text('Firma y sello',155,y+5,{align:'center'});
+  doc.save(`Recibo_${p.periodo}_${(c.plaza||'')}_${nombreCompleto(c).replace(/\s+/g,'_')}.pdf`);
+}
+
+/* =================== COPIAS / AJUSTES =================== */
+function exportarCopia(){
+  const blob=new Blob([JSON.stringify(DB,null,1)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`Copia_Parking_Autol_${hoyISO()}.json`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  DB.ultimaCopia=hoyISO(); guardar(); toast('Copia descargada ✔');
+}
+function importarCopia(input){
+  const f=input.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!Array.isArray(d.clientes)) throw 0;
+      confirmar(`La copia tiene ${d.clientes.length} clientes, ${(d.pagos||[]).length} cobros y ${(d.gastos||[]).length} gastos. ¿Sustituir los datos actuales por los de la copia?`, ()=>{ DB=Object.assign({clientes:[],pagos:[],gastos:[],empresa:{}},d); guardar(); pintarClientes(); cargarEmpresa(); toast('Copia restaurada ✔'); });
+    }catch(e){ toast('El archivo no es una copia válida','error'); } input.value=''; };
+  r.readAsText(f);
+}
+function infoDatos(){
+  const el=$('info-datos'); if(!el) return;
+  el.innerHTML=`📦 Guardado en este dispositivo: <b>${DB.clientes.length}</b> clientes · <b>${DB.pagos.length}</b> cobros · <b>${DB.gastos.length}</b> gastos.<br>🕒 Última copia de seguridad: <b>${DB.ultimaCopia?fechaES(DB.ultimaCopia):'nunca'}</b>`;
+}
+function cargarEmpresa(){ const e=DB.empresa||{}; ['nombre','titular','nif','telefono','direccion'].forEach(k=>$('e-'+k).value=e[k]||(k==='nombre'?'Parking Autol':'')); }
+function guardarEmpresa(){ DB.empresa={}; ['nombre','titular','nif','telefono','direccion'].forEach(k=>DB.empresa[k]=$('e-'+k).value.trim()); guardar(); toast('Datos guardados ✔'); }
+function borrarTodo(){
+  confirmar('¿Seguro que quiere BORRAR TODOS los datos (clientes, pagos y gastos) de este dispositivo? Haga antes una copia de seguridad.', ()=>{
+    confirmar('ÚLTIMO AVISO: se borrará todo y no se podrá recuperar. ¿Continuar?', ()=>{ DB={clientes:[],pagos:[],gastos:[],empresa:{nombre:'Parking Autol'}}; guardar(); pintarClientes(); mostrarTab('clientes'); toast('Datos borrados'); });
+  });
+}
+
+/* =================== ARRANQUE =================== */
+// Pedir al navegador que no borre los datos locales
+if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+// Recordatorio de copia de seguridad
+(function(){ if(DB.clientes.length>0){ const u=DB.ultimaCopia; const dias=u?Math.floor((Date.now()-new Date(u))/86400000):999; if(dias>30) setTimeout(()=>toast('💾 Recuerde hacer una copia de seguridad (pestaña Copias)','error'),1500); } })();
+pintarClientes();
+if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>
